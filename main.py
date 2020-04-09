@@ -1,4 +1,5 @@
 from selenium import webdriver
+from selenium.webdriver import DesiredCapabilities
 from selenium.webdriver.common.keys import Keys
 from LibSheet import LibSheet
 from ExamRobot import ExamRobot
@@ -6,12 +7,15 @@ import configparser as cp
 import time
 import re
 import threading
+from selenium.webdriver.common.proxy import Proxy, ProxyType
+import ProxyPool
 
 # read user-config from ini
 config = cp.ConfigParser()
 config.read('config.ini')
 website_url = config.get('website', 'url')
 excel_path = config.get('excel', 'path')
+proxy_pool_url = config.get('proxy-pool', 'url')
 
 
 def process_file(path):
@@ -37,9 +41,8 @@ def process_file(path):
 
 def go(browser, url, username, password):
     browser.get(url)
-    browser.implicitly_wait(5)
-    browser.execute_script('window.hideMask()')
     browser.maximize_window()
+    input()
     browser.find_element_by_xpath('//*[@id="root"]/div/div[3]/div/span[1]').click()
     browser.find_element_by_xpath('//*[@id="login-app"]/div/div/form/fieldset[1]/input').send_keys(username)
     browser.find_element_by_name('password').send_keys(password)
@@ -50,8 +53,21 @@ def go(browser, url, username, password):
 
 
 def core_process(username, password):
-    # load main unit
-    browser = webdriver.Chrome()
+    # set proxy
+    proxy = ProxyPool.get_proxy_ip()
+    settings = {
+        "httpProxy": proxy,
+        "sslProxy": proxy
+    }
+    print('proxy_ip', proxy)
+    proxy = Proxy(settings)
+    cap = DesiredCapabilities.CHROME.copy()
+    cap['platform'] = "WINDOWS"
+    cap['version'] = "10"
+    proxy.add_to_capabilities(cap)
+    browser = webdriver.Chrome(desired_capabilities=cap)
+    # browser = webdriver.Chrome()
+    browser.implicitly_wait(5)
     lib_sheet = LibSheet(excel_path)
     robot = ExamRobot(lib_sheet, browser)
     try:
@@ -63,11 +79,12 @@ def core_process(username, password):
         browser.find_element_by_xpath('//*[@id="root"]/div/div[2]/div/div[2]/div[1]').click()
         with open('finished.txt', 'a') as f:
             f.write('username: %s, password: %s finished\n' %
-                    (consumer_dict.get('username'), consumer_dict.get('password')))
-    except:
+                    (customer_dict.get('username'), customer_dict.get('password')))
+    except Exception as e:
+        print(e)
         with open('unfinished.txt', 'a') as f:
-            f.write(consumer_dict.get('username') +
-                    ' ' + consumer_dict.get('password') + '\n')
+            f.write(customer_dict.get('username') +
+                    ' ' + customer_dict.get('password') + '\n')
     finally:
         browser.quit()
 
@@ -75,6 +92,6 @@ def core_process(username, password):
 # main process
 #  launch
 if __name__ == '__main__':
-    for consumer_dict in process_file('customer.txt'):
-        threading.Thread(target=core_process, args=(consumer_dict.get('username'),
-                                                    consumer_dict.get('password'))).start()
+    for customer_dict in process_file('customer.txt'):
+        threading.Thread(target=core_process, args=(customer_dict.get('username'),
+                                                    customer_dict.get('password'))).start()
