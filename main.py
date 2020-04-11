@@ -19,9 +19,11 @@ proxy_pool_url = config.get('proxy-pool', 'url')
 
 
 def process_file(path):
-    regex = r'3[\d]1[6,7,8,9]\d{6}'
     with open(path, 'r') as f:
         rawData = f.read()
+    regex = r'[^\da-zA-Z]*'
+    rawData = re.sub(regex, '', rawData)
+    regex = r'3[\d]1[6,7,8,9]\d{6}'
     dict_list = []
     passwordList = re.split(regex, rawData)
     print(passwordList)
@@ -42,7 +44,6 @@ def process_file(path):
 def go(browser, url, username, password):
     browser.get(url)
     browser.maximize_window()
-    input()
     browser.find_element_by_xpath('//*[@id="root"]/div/div[3]/div/span[1]').click()
     browser.find_element_by_xpath('//*[@id="login-app"]/div/div/form/fieldset[1]/input').send_keys(username)
     browser.find_element_by_name('password').send_keys(password)
@@ -52,8 +53,7 @@ def go(browser, url, username, password):
     browser.find_element_by_xpath('//*[@id="root"]/div/div[2]/div/div[2]/div[1]').click()
 
 
-def core_process(username, password):
-    # set proxy
+def set_proxy():
     proxy = ProxyPool.get_proxy_ip()
     settings = {
         "httpProxy": proxy,
@@ -65,8 +65,12 @@ def core_process(username, password):
     cap['platform'] = "WINDOWS"
     cap['version'] = "10"
     proxy.add_to_capabilities(cap)
-    browser = webdriver.Chrome(desired_capabilities=cap)
-    # browser = webdriver.Chrome()
+    return cap
+
+
+def core_process(username, password):
+    # browser = webdriver.Chrome(desired_capabilities=set_proxy())
+    browser = webdriver.Chrome()
     browser.implicitly_wait(5)
     lib_sheet = LibSheet(excel_path)
     robot = ExamRobot(lib_sheet, browser)
@@ -77,16 +81,14 @@ def core_process(username, password):
         browser.find_element_by_xpath('//*[@id="root"]/div/div[4]/div/div[3]/div[2]/p/span[1]').click()
         time.sleep(2)
         browser.find_element_by_xpath('//*[@id="root"]/div/div[2]/div/div[2]/div[1]').click()
+        time.sleep(10)
         with open('finished.txt', 'a') as f:
             f.write('username: %s, password: %s finished\n' %
-                    (customer_dict.get('username'), customer_dict.get('password')))
+                    (str(username), str(password)))
     except Exception as e:
         print(e)
         with open('unfinished.txt', 'a') as f:
-            f.write(customer_dict.get('username') +
-                    ' ' + customer_dict.get('password') + '\n')
-    finally:
-        browser.quit()
+            f.write(str(username) + ' ' + str(password) + '\n')
 
 
 # main process
@@ -95,3 +97,9 @@ if __name__ == '__main__':
     for customer_dict in process_file('customer.txt'):
         threading.Thread(target=core_process, args=(customer_dict.get('username'),
                                                     customer_dict.get('password'))).start()
+    while threading.active_count() > 1:
+        pass
+    with open('finished.txt', 'a') as file:
+        file.write('---------------------------------------------------')
+    with open('unfinished.txt', 'a') as file:
+        file.write('---------------------------------------------------')
