@@ -23,8 +23,9 @@ proxy_pool_url = config.get('proxy-pool', 'url')
 def process_file(path):
     with open(path, 'r') as f:
         rawData = f.read()
-    regex = r'[^\da-zA-Z]*'
-    rawData = re.sub(regex, '', rawData)
+    # regex = r'[^\da-zA-Z]*'
+    # rawData = re.sub(regex, '', rawData)
+    print(rawData)
     regex = r'3[\d]1[6,7,8,9]\d{6}'
     dict_list = []
     passwordList = re.split(regex, rawData)
@@ -85,7 +86,8 @@ def core_process(username, password):
         browser.find_element_by_xpath('//*[@id="root"]/div/div[2]/div/div[2]/div[1]').click()
         time.sleep(10)
         connect = sqlite3.connect('database.sqlite')
-        connect.execute('insert into customer Values(?,?,?,?)', (username, password, True, ''))
+        connect.execute('insert into customer Values(?,?,?,?,?)',
+                        (username, password, True, '', datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
         connect.commit()
         connect.close()
     except sqlite3.Error as e:
@@ -93,7 +95,8 @@ def core_process(username, password):
             log.write('[' + str(datetime.now()) + ']  ' + str(e) + '\n')
     except Exception as e:
         connect = sqlite3.connect('database.sqlite')
-        connect.execute('insert into customer Values(?,?,?,?)', (username, password, False, str(e)))
+        connect.execute('insert into customer Values(?,?,?,?,?)',
+                        (username, password, False, str(e), datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
         connect.commit()
         connect.close()
 
