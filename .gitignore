@@ -1,6 +1,12 @@
 /__pycache__
 debug.log
 test.py
-38.xls
-39.xlsx
+*xls*
+venv
+.idea
 .vscode
+*txt
+ip_pool*
+*sqlite
+*db
+log.txt
