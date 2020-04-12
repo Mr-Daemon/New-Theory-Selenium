@@ -5,7 +5,8 @@ test.py
 venv
 .idea
 .vscode
-customer.txt
-finished.txt
-unfinished.txt
+*txt
 ip_pool*
+*sqlite
+*db
+log.txt

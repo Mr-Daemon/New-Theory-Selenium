@@ -9,6 +9,8 @@ import re
 import threading
 from selenium.webdriver.common.proxy import Proxy, ProxyType
 import ProxyPool
+import sqlite3
+from datetime import datetime
 
 # read user-config from ini
 config = cp.ConfigParser()
@@ -69,12 +71,12 @@ def set_proxy():
 
 
 def core_process(username, password):
-    # browser = webdriver.Chrome(desired_capabilities=set_proxy())
-    browser = webdriver.Chrome()
-    browser.implicitly_wait(5)
-    lib_sheet = LibSheet(excel_path)
-    robot = ExamRobot(lib_sheet, browser)
     try:
+        # browser = webdriver.Chrome(desired_capabilities=set_proxy())
+        browser = webdriver.Chrome()
+        browser.implicitly_wait(5)
+        lib_sheet = LibSheet(excel_path)
+        robot = ExamRobot(lib_sheet, browser)
         go(browser, website_url, username, password)
         robot.fill_questions()
         robot.fill_captcha()
@@ -82,13 +84,18 @@ def core_process(username, password):
         time.sleep(2)
         browser.find_element_by_xpath('//*[@id="root"]/div/div[2]/div/div[2]/div[1]').click()
         time.sleep(10)
-        with open('finished.txt', 'a') as f:
-            f.write('username: %s, password: %s finished\n' %
-                    (str(username), str(password)))
+        connect = sqlite3.connect('database.sqlite')
+        connect.execute('insert into customer Values(?,?,?,?)', (username, password, True, ''))
+        connect.commit()
+        connect.close()
+    except sqlite3.Error as e:
+        with open('log.txt', 'a') as log:
+            log.write('[' + str(datetime.now()) + ']  ' + str(e) + '\n')
     except Exception as e:
-        print(e)
-        with open('unfinished.txt', 'a') as f:
-            f.write(str(username) + ' ' + str(password) + '\n')
+        connect = sqlite3.connect('database.sqlite')
+        connect.execute('insert into customer Values(?,?,?,?)', (username, password, False, str(e)))
+        connect.commit()
+        connect.close()
 
 
 # main process
@@ -97,9 +104,3 @@ if __name__ == '__main__':
     for customer_dict in process_file('customer.txt'):
         threading.Thread(target=core_process, args=(customer_dict.get('username'),
                                                     customer_dict.get('password'))).start()
-    while threading.active_count() > 1:
-        pass
-    with open('finished.txt', 'a') as file:
-        file.write('---------------------------------------------------')
-    with open('unfinished.txt', 'a') as file:
-        file.write('---------------------------------------------------')
